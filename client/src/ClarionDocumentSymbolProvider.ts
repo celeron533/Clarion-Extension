@@ -44,6 +44,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
 
                 if (!inside_member){
                     // "   MEMBER('UTL2.clw')                                     !App=UTL2"
+                    member_match_exp.lastIndex = 0
                     const member_matches = member_match_exp.exec(line.text)
                     if (member_matches !== null && 
                         member_matches.groups?.filename){
@@ -70,6 +71,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                 }
                 if(parsing_procedure){
                     procedure_string += line.text
+                    procedure_match_exp.lastIndex = 0
                     let procedure_matches = procedure_match_exp.exec(procedure_string)
                     if (procedure_matches !== null && 
                         procedure_matches.groups?.name){
@@ -104,6 +106,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
 
                 if (!line.text.startsWith(" ")){
                     // "LoadData    routine"
+                    routine_match_exp.lastIndex = 0
                     let routine_matches = routine_match_exp.exec(line.text)
                     if (routine_matches !== null && 
                         routine_matches.groups?.name){
