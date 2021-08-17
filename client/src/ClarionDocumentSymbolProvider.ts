@@ -24,15 +24,15 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
             const symbolkind_member = vscode.SymbolKind.Module
             const symbolkind_procedure = vscode.SymbolKind.Method
             const symbolkind_routine = vscode.SymbolKind.Property
+            const symbolkind_variable = vscode.SymbolKind.Variable
 
 
             const member_match_exp = new RegExp("^\\s*member\\s*\\(\\s*'(?<filename>\\S+)'\\s*\\)","igm")
-            let hasModuleName = false
 
             const procedure_header_exp = new RegExp("^(?<name>\\S+)\\s+procedure","igm")
             const procedure_match_exp = new RegExp("^(?<name>\\S+)\\s+procedure\\((?<args>.*)\\)(,(?<virtual>virtual))?","igm")
             const routine_match_exp = new RegExp("^(?<name>\\S+)\\s+routine","igm")
-
+            const variable_match_exp = new RegExp("^(?<name>\\S+)\\s+","igm")
 
             for (var i = 0; i < document.lineCount; i++) {
                 var line = document.lineAt(i);
@@ -40,7 +40,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     continue;
 
                 //let tokens = line.text.split(" ");
-                let tokens = line.text.split(/\s+/);
+                //let tokens = line.text.split(/\s+/);
 
                 if (!inside_member){
                     // "   MEMBER('UTL2.clw')                                     !App=UTL2"
@@ -50,7 +50,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                         member_matches.groups?.filename){
                         let member_symbol = new vscode.DocumentSymbol(
                             member_matches.groups.filename,  // filename:"UTL2.clw"
-                            "app",
+                            "",
                             symbolkind_member,
                             line.range,line.range
                         )
@@ -63,7 +63,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                 }
 
                 // "Treat     procedure()"
-                if (!line.text.startsWith(" ") && !parsing_procedure){
+                if (!line.text.startsWith(" ") && !parsing_procedure){  // could multiline
+                    procedure_header_exp.lastIndex = 0
                     if (procedure_header_exp.test(line.text)){
                         procedure_string = ""
                         parsing_procedure = true
@@ -77,7 +78,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                         procedure_matches.groups?.name){
                         let procedure_symbol = new vscode.DocumentSymbol(
                             procedure_matches.groups.name,  // name:"Treat"
-                            "procedure",
+                            "",
                             symbolkind_procedure,
                             line.range,line.range
                         )
@@ -89,10 +90,9 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             nodes.pop()
                             inside_routine = false
                         }
-                        else if(inside_procedure){
+                        if (inside_procedure){
                             nodes.pop()
                             inside_procedure = false
-                            inside_routine = false
                         }
                         nodes[nodes.length-1].push(procedure_symbol)
                         nodes.push(procedure_symbol.children)
@@ -112,13 +112,38 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                         routine_matches.groups?.name){
                         let routine_symbol = new vscode.DocumentSymbol(
                             routine_matches.groups.name,  // name:"LoadData"
-                            "routine",
+                            "",
                             symbolkind_routine,
                             line.range,line.range
                         )
 
+                        if (inside_routine)
+                        {
+                            nodes.pop()
+                            inside_routine = false
+                        }
+
                         nodes[nodes.length-1].push(routine_symbol)
+                        nodes.push(routine_symbol.children)
                         inside_routine = true
+                        continue;
+                    }
+                }
+
+                if (!line.text.startsWith(" ")){
+                    // "NumberOfAttempts           short"
+                    variable_match_exp.lastIndex = 0
+                    let variable_matches = variable_match_exp.exec(line.text)
+                    if (variable_matches !== null && 
+                        variable_matches.groups?.name){
+                        let variable_symbol = new vscode.DocumentSymbol(
+                            variable_matches.groups.name,  // name:"NumberOfAttempts"
+                            "",
+                            symbolkind_variable,
+                            line.range,line.range
+                        )
+
+                        nodes[nodes.length-1].push(variable_symbol)
                         continue;
                     }
                 }
