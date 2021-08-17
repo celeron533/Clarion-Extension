@@ -26,17 +26,20 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
             const symbolkind_routine = vscode.SymbolKind.Property
             const symbolkind_variable = vscode.SymbolKind.Variable
 
-
             const member_match_exp = new RegExp("^\\s*member\\s*\\(\\s*'(?<filename>\\S+)'\\s*\\)","igm")
-
             const procedure_header_exp = new RegExp("^(?<name>\\S+)\\s+procedure","igm")
             const procedure_match_exp = new RegExp("^(?<name>\\S+)\\s+procedure\\((?<args>.*)\\)(,(?<virtual>virtual))?","igm")
             const routine_match_exp = new RegExp("^(?<name>\\S+)\\s+routine","igm")
             const variable_match_exp = new RegExp("^(?<name>\\S+)\\s+","igm")
 
+            let member_symbol:vscode.DocumentSymbol = null
+            let procedure_symbol:vscode.DocumentSymbol = null
+            let routine_symbol:vscode.DocumentSymbol = null
+            let variable_symbol:vscode.DocumentSymbol = null
+
             for (var i = 0; i < document.lineCount; i++) {
                 var line = document.lineAt(i);
-                if (line.isEmptyOrWhitespace || line.text.startsWith("!"))
+                if (line.isEmptyOrWhitespace || line.text.trim().startsWith("!"))
                     continue;
 
                 //let tokens = line.text.split(" ");
@@ -48,7 +51,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     const member_matches = member_match_exp.exec(line.text)
                     if (member_matches !== null && 
                         member_matches.groups?.filename){
-                        let member_symbol = new vscode.DocumentSymbol(
+                        member_symbol = new vscode.DocumentSymbol(
                             member_matches.groups.filename,  // filename:"UTL2.clw"
                             "",
                             symbolkind_member,
@@ -76,7 +79,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     let procedure_matches = procedure_match_exp.exec(procedure_string)
                     if (procedure_matches !== null && 
                         procedure_matches.groups?.name){
-                        let procedure_symbol = new vscode.DocumentSymbol(
+                        procedure_symbol = new vscode.DocumentSymbol(
                             procedure_matches.groups.name,  // name:"Treat"
                             "",
                             symbolkind_procedure,
@@ -110,7 +113,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     let routine_matches = routine_match_exp.exec(line.text)
                     if (routine_matches !== null && 
                         routine_matches.groups?.name){
-                        let routine_symbol = new vscode.DocumentSymbol(
+                        routine_symbol = new vscode.DocumentSymbol(
                             routine_matches.groups.name,  // name:"LoadData"
                             "",
                             symbolkind_routine,
@@ -136,7 +139,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     let variable_matches = variable_match_exp.exec(line.text)
                     if (variable_matches !== null && 
                         variable_matches.groups?.name){
-                        let variable_symbol = new vscode.DocumentSymbol(
+                        variable_symbol = new vscode.DocumentSymbol(
                             variable_matches.groups.name,  // name:"NumberOfAttempts"
                             "",
                             symbolkind_variable,
