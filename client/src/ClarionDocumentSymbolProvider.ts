@@ -18,8 +18,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
             let inside_member = false
             let inside_procedure = false
             let inside_routine = false
-            let parsing_procedure = false
-            let procedure_string = ""
+            let is_parsing_procedure = false
+            let procedure_name_string = ""
 
             const symbolkind_member = vscode.SymbolKind.Module
             const symbolkind_procedure = vscode.SymbolKind.Method
@@ -66,17 +66,18 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                 }
 
                 // "Treat     procedure()"
-                if (!line.text.startsWith(" ") && !parsing_procedure){  // could multiline
+                if (!line.text.startsWith(" ") && !is_parsing_procedure){  // the Procedure declaration could multiline. Find the beginning of the Procedure
                     procedure_header_exp.lastIndex = 0
                     if (procedure_header_exp.test(line.text)){
-                        procedure_string = ""
-                        parsing_procedure = true
+                        procedure_name_string = ""
+                        is_parsing_procedure = true
                     }
                 }
-                if(parsing_procedure){
-                    procedure_string += line.text
+                if(is_parsing_procedure){
+                    procedure_name_string += line.text
                     procedure_match_exp.lastIndex = 0
-                    let procedure_matches = procedure_match_exp.exec(procedure_string)
+                    let procedure_matches = procedure_match_exp.exec(procedure_name_string)
+                    // Hit. This is a procedure
                     if (procedure_matches !== null && 
                         procedure_matches.groups?.name){
                         procedure_symbol = new vscode.DocumentSymbol(
@@ -89,6 +90,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             procedure_symbol.name+="(...)"
                         }
 
+                        // Since Clarion Procedure has no explicit section end symbol.
+                        // When any ongoing Routing or Procedure meet the new Procedure, seal the previous section
                         if (inside_routine){
                             nodes.pop()
                             inside_routine = false
@@ -97,12 +100,13 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             nodes.pop()
                             inside_procedure = false
                         }
+
                         nodes[nodes.length-1].push(procedure_symbol)
                         nodes.push(procedure_symbol.children)
                         inside_procedure = true
 
-                        parsing_procedure = false
-                        procedure_string=""
+                        is_parsing_procedure = false
+                        procedure_name_string=""
                         continue;
                     }
                 }
@@ -120,6 +124,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             line.range,line.range
                         )
 
+                        // Since Clarion Procedure has no explicit section end symbol.
+                        // When any ongoing Routing meet the new Procedure, seal the previous section
                         if (inside_routine)
                         {
                             nodes.pop()
@@ -136,7 +142,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                 if (!line.text.startsWith(" ")){
                     // "NumberOfAttempts           short"
                     variable_match_exp.lastIndex = 0
-                    let variable_matches = variable_match_exp.exec(line.text)
+                    let variable_matches = variable_match_exp.exec(line.text)   // variable could be attached in any section, such as Procedure or Routine
                     if (variable_matches !== null && 
                         variable_matches.groups?.name){
                         variable_symbol = new vscode.DocumentSymbol(
