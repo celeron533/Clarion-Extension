@@ -6,6 +6,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
         return cmd.substr(1).toLowerCase().replace(/^\w/, c => c.toUpperCase())
     }
 
+
+
     public provideDocumentSymbols(
         document: vscode.TextDocument,
         token: vscode.CancellationToken): Promise<vscode.DocumentSymbol[]> {
@@ -18,6 +20,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
             let inside_routine = false
             let is_parsing_procedure = false
             let procedure_name_string = ""
+            let procedure_start_range: vscode.Range = null
 
             const symbolkind_member = vscode.SymbolKind.Module
             const symbolkind_procedure = vscode.SymbolKind.Method
@@ -53,7 +56,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             member_matches.groups.filename,  // filename:"UTL2.clw"
                             "",
                             symbolkind_member,
-                            line.range, line.range
+                            new vscode.Range(line.range.start, document.lineAt(document.lineCount-1).range.end),//until the last line of the file
+                            line.range
                         )
 
                         nodes[nodes.length - 1].push(member_symbol)
@@ -69,6 +73,7 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                     if (procedure_header_exp.test(line.text)) {
                         procedure_name_string = ""
                         is_parsing_procedure = true
+                        procedure_start_range = line.range
                     }
                 }
                 if (is_parsing_procedure) {
@@ -82,7 +87,8 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                             procedure_matches.groups.name,  // name:"Treat"
                             "",
                             symbolkind_procedure,
-                            line.range, line.range
+                            line.range,
+                            line.range
                         )
                         if (procedure_matches.groups?.args) { // has additional procedure arguments
                             procedure_symbol.name += "(...)"
@@ -93,10 +99,20 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                         if (inside_routine) {
                             nodes.pop()
                             inside_routine = false
+
+                            // udpate the previous Routine's range
+                            let lastRoutine = nodes[nodes.length-1].pop()
+                            lastRoutine.range = new vscode.Range(lastRoutine.range.start, document.lineAt(procedure_start_range.start.line - 1).range.end)
+                            nodes[nodes.length-1].push(lastRoutine)
                         }
                         if (inside_procedure) {
                             nodes.pop()
                             inside_procedure = false
+
+                            // update the previous Procedure's range
+                            let lastProcedure = nodes[nodes.length-1].pop()
+                            lastProcedure.range = new vscode.Range(lastProcedure.range.start, document.lineAt(procedure_start_range.start.line - 1).range.end)
+                            nodes[nodes.length-1].push(lastProcedure)
                         }
 
                         nodes[nodes.length - 1].push(procedure_symbol)
@@ -127,6 +143,11 @@ export class ClarionDocumentSymbolProvider implements vscode.DocumentSymbolProvi
                         if (inside_routine) {
                             nodes.pop()
                             inside_routine = false
+
+                            // udpate the previous Routine's range
+                            let lastRoutine = nodes[nodes.length-1].pop()
+                            lastRoutine.range = new vscode.Range(lastRoutine.range.start, document.lineAt(i-1).range.end)
+                            nodes[nodes.length-1].push(lastRoutine)
                         }
 
                         nodes[nodes.length - 1].push(routine_symbol)
